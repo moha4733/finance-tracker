@@ -11,8 +11,8 @@
 	<groupId>com.financetracker</groupId>
 	<artifactId>finance-tracker</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>Finance Tracker</name>
+	<description>Finance Tracker Backend Application</description>
 	<url/>
 	<licenses>
 		<license/>
