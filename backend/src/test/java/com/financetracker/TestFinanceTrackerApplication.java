@@ -1,4 +1,4 @@
-package com.example.finance_tracker;
+package com.financetracker;
 
 import org.springframework.boot.SpringApplication;
 
