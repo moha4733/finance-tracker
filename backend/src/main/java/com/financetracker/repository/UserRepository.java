@@ -1,7 +1,7 @@
-package src.main.java.com.financetracker.repository;
+package com.financetracker.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import src.main.java.com.financetracker.model.User;
+import com.financetracker.model.User;
 
 import java.util.Optional;
 

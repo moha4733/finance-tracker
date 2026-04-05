@@ -1,4 +1,4 @@
-package src.main.java.com.financetracker.model;
+package com.financetracker.model;
 
 
 import jakarta.persistence.*;
