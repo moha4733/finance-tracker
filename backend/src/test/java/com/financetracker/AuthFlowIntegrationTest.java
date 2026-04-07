@@ -69,4 +69,23 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.username").value("student01"));
     }
+
+    @Test
+    void registerWorksEvenWithInvalidAuthorizationHeader() throws Exception {
+        String payload = """
+                {
+                  "username": "student_invalid_header",
+                  "email": "student_invalid_header@test.com",
+                  "password": "123456"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/register")
+                        .header("Authorization", "Bearer invalid.token.value")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.username").value("student_invalid_header"));
+    }
 }
