@@ -13,6 +13,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByUserId(Long userId);
     List<Transaction> findByUserIdAndType(Long userId, String type);
     List<Transaction> findByUserIdAndDateBetween(Long userId, LocalDate start, LocalDate end);
+    boolean existsByUserIdAndRecurringSourceIdAndDate(Long userId, Long recurringSourceId, LocalDate date);
 
     @Query("SELECT t.category.name, SUM(t.amount) FROM Transaction t " +
             "WHERE t.user.id = :userId AND t.type = :type " +

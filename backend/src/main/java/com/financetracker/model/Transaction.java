@@ -5,7 +5,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "transactions")
+@Table(
+        name = "transactions",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "recurring_source_id", "date"})
+)
 public class Transaction {
 
     @Id
@@ -31,6 +34,9 @@ public class Transaction {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @Column(name = "recurring_source_id")
+    private Long recurringSourceId;
+
     // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -52,4 +58,7 @@ public class Transaction {
 
     public Category getCategory() { return category; }
     public void setCategory(Category category) { this.category = category; }
+
+    public Long getRecurringSourceId() { return recurringSourceId; }
+    public void setRecurringSourceId(Long recurringSourceId) { this.recurringSourceId = recurringSourceId; }
 }

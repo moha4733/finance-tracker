@@ -15,6 +15,7 @@ function Dashboard() {
     const username = localStorage.getItem('username')
     const [categories, setCategories] = useState([])
     const [budgets, setBudgets] = useState([])
+    const [recurringTransactions, setRecurringTransactions] = useState([])
     const [transactions, setTransactions] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -30,6 +31,14 @@ function Dashboard() {
         categoryId: '',
         month: new Date().toISOString().slice(0, 7),
         amount: ''
+    })
+    const [recurringForm, setRecurringForm] = useState({
+        amount: '',
+        description: '',
+        type: 'EXPENSE',
+        categoryId: '',
+        startDate: new Date().toISOString().slice(0, 10),
+        frequency: 'MONTHLY'
     })
     const [filters, setFilters] = useState({
         month: new Date().toISOString().slice(0, 7),
@@ -59,14 +68,16 @@ function Dashboard() {
         try {
             setError('')
             setLoading(true)
-            const [categoryRes, transactionRes, budgetRes] = await Promise.all([
+            const [categoryRes, transactionRes, budgetRes, recurringRes] = await Promise.all([
                 api.get('/categories'),
                 api.get('/transactions'),
-                api.get('/budgets', { params: { month } })
+                api.get('/budgets', { params: { month } }),
+                api.get('/recurring-transactions')
             ])
             setCategories(categoryRes.data || [])
             setTransactions(transactionRes.data || [])
             setBudgets(budgetRes.data || [])
+            setRecurringTransactions(recurringRes.data || [])
         } catch (err) {
             setError(getApiErrorMessage(err, 'Kunne ikke hente data. Tjek at backend koerer og du er logget ind.'))
             notify(getApiErrorMessage(err), 'error')
@@ -246,6 +257,54 @@ function Dashboard() {
             notify(getApiErrorMessage(err, 'Kunne ikke gemme budget.'), 'error')
         } finally {
             setLoadingKey('createBudget', false)
+        }
+    }
+
+    const createRecurringTransaction = async (e) => {
+        e.preventDefault()
+        setLoadingKey('createRecurring', true)
+        try {
+            const payload = {
+                amount: Number(recurringForm.amount),
+                description: recurringForm.description,
+                type: recurringForm.type,
+                categoryId: recurringForm.categoryId ? Number(recurringForm.categoryId) : null,
+                startDate: recurringForm.startDate,
+                frequency: recurringForm.frequency,
+                active: true
+            }
+            const res = await api.post('/recurring-transactions', payload)
+            setRecurringTransactions((prev) => [res.data, ...prev])
+            setRecurringForm((prev) => ({
+                ...prev,
+                amount: '',
+                description: ''
+            }))
+            notify('Fast transaktion oprettet', 'success')
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Kunne ikke oprette fast transaktion.'))
+            notify(getApiErrorMessage(err, 'Kunne ikke oprette fast transaktion.'), 'error')
+        } finally {
+            setLoadingKey('createRecurring', false)
+        }
+    }
+
+    const runRecurringNow = async () => {
+        setLoadingKey('runRecurring', true)
+        try {
+            const res = await api.post('/recurring-transactions/run-due')
+            const count = Number(res?.data?.generatedCount || 0)
+            if (count > 0) {
+                notify(`${count} faste transaktioner genereret`, 'success')
+            } else {
+                notify('Ingen faste transaktioner var forfaldne', 'info')
+            }
+            await loadData(filters.month)
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Kunne ikke koere recurring generation.'))
+            notify(getApiErrorMessage(err, 'Kunne ikke koere recurring generation.'), 'error')
+        } finally {
+            setLoadingKey('runRecurring', false)
         }
     }
 
@@ -451,6 +510,93 @@ function Dashboard() {
                             Gem budget
                         </Button>
                     </form>
+                </Card>
+
+                <Card className="section" style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                        <h3 style={{ marginTop: 0, marginBottom: 0 }}>Faste transaktioner</h3>
+                        <Button
+                            variant="secondary"
+                            type="button"
+                            loading={actionsLoading.runRecurring}
+                            onClick={runRecurringNow}
+                        >
+                            Koer nu
+                        </Button>
+                    </div>
+                    <form onSubmit={createRecurringTransaction}>
+                        <div className="filters-grid">
+                            <Input
+                                id="recurring-amount"
+                                label="Belob"
+                                type="number"
+                                step="0.01"
+                                value={recurringForm.amount}
+                                onChange={(e) => setRecurringForm({ ...recurringForm, amount: e.target.value })}
+                            />
+                            <Input
+                                id="recurring-description"
+                                label="Beskrivelse"
+                                value={recurringForm.description}
+                                onChange={(e) => setRecurringForm({ ...recurringForm, description: e.target.value })}
+                            />
+                            <Input
+                                id="recurring-start-date"
+                                label="Startdato"
+                                type="date"
+                                value={recurringForm.startDate}
+                                onChange={(e) => setRecurringForm({ ...recurringForm, startDate: e.target.value })}
+                            />
+                            <Select
+                                id="recurring-type"
+                                label="Type"
+                                value={recurringForm.type}
+                                onChange={(e) => setRecurringForm({ ...recurringForm, type: e.target.value })}
+                            >
+                                <option value="EXPENSE">Expense</option>
+                                <option value="INCOME">Income</option>
+                            </Select>
+                            <Select
+                                id="recurring-category"
+                                label="Kategori (valgfri)"
+                                value={recurringForm.categoryId}
+                                onChange={(e) => setRecurringForm({ ...recurringForm, categoryId: e.target.value })}
+                            >
+                                <option value="">Ingen kategori</option>
+                                {categories.map((category) => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.name}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
+                        <Button
+                            type="submit"
+                            loading={actionsLoading.createRecurring}
+                            disabled={!recurringForm.amount || !recurringForm.description || !recurringForm.startDate}
+                        >
+                            Opret fast transaktion
+                        </Button>
+                    </form>
+                    {recurringTransactions.length === 0 ? (
+                        <EmptyState title="Ingen faste transaktioner" message="Opret en template for at automatisere gentagelser." />
+                    ) : (
+                        <ul className="transaction-list" style={{ marginTop: 12 }}>
+                            {recurringTransactions.slice(0, 6).map((rec) => (
+                                <li className="item" key={rec.id}>
+                                    <div>
+                                        <strong>{rec.description}</strong>
+                                        <div className="muted" style={{ fontSize: 13 }}>
+                                            Naeste koersel: {rec.nextRunDate} - {rec.categoryName || 'Ingen kategori'}
+                                        </div>
+                                    </div>
+                                    <span className={String(rec.type).toUpperCase() === 'INCOME' ? 'positive' : 'negative'}>
+                                        {asCurrency(Number(rec.amount || 0))}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </Card>
 
                 <section className="dashboard-grid">
