@@ -80,6 +80,20 @@ Copy `.env.example` to `.env` and adjust if needed:
 - `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` (backend DB connection)
 - `JWT_SECRET` (JWT signing key)
 
+## Screenshots
+
+### Home
+![Home](./screenshots/home.png)
+
+### Login
+![Login](./screenshots/login.png)
+
+### Register
+![Register](./screenshots/register.png)
+
+### Dashboard
+![Dashboard](./screenshots/dashboard.png)
+
 ## Testing
 
 ### Backend tests
