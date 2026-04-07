@@ -14,6 +14,7 @@ function Dashboard() {
     const navigate = useNavigate()
     const username = localStorage.getItem('username')
     const [categories, setCategories] = useState([])
+    const [budgets, setBudgets] = useState([])
     const [transactions, setTransactions] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -24,6 +25,11 @@ function Dashboard() {
         date: new Date().toISOString().slice(0, 10),
         type: 'EXPENSE',
         categoryId: ''
+    })
+    const [budgetForm, setBudgetForm] = useState({
+        categoryId: '',
+        month: new Date().toISOString().slice(0, 7),
+        amount: ''
     })
     const [filters, setFilters] = useState({
         month: new Date().toISOString().slice(0, 7),
@@ -49,16 +55,18 @@ function Dashboard() {
         }, 2800)
     }
 
-    const loadData = async () => {
+    const loadData = async (month = filters.month) => {
         try {
             setError('')
             setLoading(true)
-            const [categoryRes, transactionRes] = await Promise.all([
+            const [categoryRes, transactionRes, budgetRes] = await Promise.all([
                 api.get('/categories'),
-                api.get('/transactions')
+                api.get('/transactions'),
+                api.get('/budgets', { params: { month } })
             ])
             setCategories(categoryRes.data || [])
             setTransactions(transactionRes.data || [])
+            setBudgets(budgetRes.data || [])
         } catch (err) {
             setError(getApiErrorMessage(err, 'Kunne ikke hente data. Tjek at backend koerer og du er logget ind.'))
             notify(getApiErrorMessage(err), 'error')
@@ -68,7 +76,7 @@ function Dashboard() {
     }
 
     useEffect(() => {
-        loadData()
+        loadData(filters.month)
     }, [])
 
     const filteredTransactions = useMemo(() => {
@@ -105,6 +113,7 @@ function Dashboard() {
 
     useEffect(() => {
         setPage(1)
+        loadData(filters.month)
     }, [filters.month, filters.type, filters.categoryId])
 
     useEffect(() => {
@@ -125,6 +134,66 @@ function Dashboard() {
         () => Math.max(1, ...chartRows.map((row) => row.value)),
         [chartRows]
     )
+
+    const monthlyExpenseByCategory = useMemo(() => {
+        const result = {}
+        filteredTransactions
+            .filter((t) => String(t.type).toUpperCase() === 'EXPENSE')
+            .forEach((t) => {
+                const key = String(t.categoryId || 'none')
+                result[key] = (result[key] || 0) + Number(t.amount || 0)
+            })
+        return result
+    }, [filteredTransactions])
+
+    const prevMonth = useMemo(() => {
+        if (!filters.month) return ''
+        const [y, m] = filters.month.split('-').map(Number)
+        const date = new Date(y, m - 1, 1)
+        date.setMonth(date.getMonth() - 1)
+        const mm = String(date.getMonth() + 1).padStart(2, '0')
+        return `${date.getFullYear()}-${mm}`
+    }, [filters.month])
+
+    const previousMonthExpenseByCategory = useMemo(() => {
+        const result = {}
+        transactions
+            .filter(
+                (t) =>
+                    String(t.type).toUpperCase() === 'EXPENSE' &&
+                    String(t.date || '').startsWith(prevMonth)
+            )
+            .forEach((t) => {
+                const key = String(t.categoryId || 'none')
+                result[key] = (result[key] || 0) + Number(t.amount || 0)
+            })
+        return result
+    }, [transactions, prevMonth])
+
+    const budgetAlerts = useMemo(() => {
+        return budgets
+            .map((budget) => {
+                const spent = monthlyExpenseByCategory[String(budget.categoryId)] || 0
+                const over = spent - Number(budget.amount || 0)
+                return { ...budget, spent, over }
+            })
+            .filter((b) => b.over > 0)
+            .sort((a, b) => b.over - a.over)
+    }, [budgets, monthlyExpenseByCategory])
+
+    const trendCards = useMemo(() => {
+        return budgets
+            .map((budget) => {
+                const current = monthlyExpenseByCategory[String(budget.categoryId)] || 0
+                const previous = previousMonthExpenseByCategory[String(budget.categoryId)] || 0
+                if (previous <= 0) return null
+                const changePct = ((current - previous) / previous) * 100
+                return { ...budget, current, previous, changePct }
+            })
+            .filter(Boolean)
+            .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
+            .slice(0, 3)
+    }, [budgets, monthlyExpenseByCategory, previousMonthExpenseByCategory])
 
     const asCurrency = (value) =>
         new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'DKK' }).format(value || 0)
@@ -152,6 +221,31 @@ function Dashboard() {
             notify(getApiErrorMessage(err, 'Kunne ikke oprette kategori.'), 'error')
         } finally {
             setLoadingKey('createCategory', false)
+        }
+    }
+
+    const createBudget = async (e) => {
+        e.preventDefault()
+        setLoadingKey('createBudget', true)
+        try {
+            const payload = {
+                categoryId: Number(budgetForm.categoryId),
+                month: budgetForm.month,
+                amount: Number(budgetForm.amount)
+            }
+            const res = await api.post('/budgets', payload)
+            setBudgets((prev) => {
+                const exists = prev.some((b) => b.id === res.data.id)
+                if (exists) return prev.map((b) => (b.id === res.data.id ? res.data : b))
+                return [res.data, ...prev]
+            })
+            setBudgetForm((prev) => ({ ...prev, amount: '' }))
+            notify('Budget gemt', 'success')
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Kunne ikke gemme budget.'))
+            notify(getApiErrorMessage(err, 'Kunne ikke gemme budget.'), 'error')
+        } finally {
+            setLoadingKey('createBudget', false)
         }
     }
 
@@ -311,6 +405,103 @@ function Dashboard() {
                         <p className={`kpi-value ${totals.balance >= 0 ? 'positive' : 'negative'}`}>
                             {asCurrency(totals.balance)}
                         </p>
+                    </Card>
+                </section>
+
+                <Card className="section" style={{ marginBottom: 16 }}>
+                    <h3 style={{ marginTop: 0 }}>Budget pr. maaned</h3>
+                    <form onSubmit={createBudget}>
+                        <div className="filters-grid">
+                            <Select
+                                id="budget-category"
+                                label="Kategori"
+                                value={budgetForm.categoryId}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, categoryId: e.target.value })}
+                            >
+                                <option value="">Vaelg kategori</option>
+                                {categories
+                                    .filter((c) => c.type === 'EXPENSE')
+                                    .map((category) => (
+                                        <option value={category.id} key={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                            </Select>
+                            <Input
+                                id="budget-month"
+                                label="Maaned"
+                                type="month"
+                                value={budgetForm.month}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, month: e.target.value })}
+                            />
+                            <Input
+                                id="budget-amount"
+                                label="Budget (DKK)"
+                                type="number"
+                                step="0.01"
+                                value={budgetForm.amount}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, amount: e.target.value })}
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            loading={actionsLoading.createBudget}
+                            disabled={!budgetForm.categoryId || !budgetForm.month || !budgetForm.amount}
+                        >
+                            Gem budget
+                        </Button>
+                    </form>
+                </Card>
+
+                <section className="dashboard-grid">
+                    <Card className="section">
+                        <h3 style={{ marginTop: 0 }}>Alerts ved overforbrug</h3>
+                        {budgetAlerts.length === 0 ? (
+                            <EmptyState
+                                title="Ingen alerts"
+                                message="Du holder dig indenfor budgettet i den valgte maaned."
+                            />
+                        ) : (
+                            <ul className="transaction-list">
+                                {budgetAlerts.map((alert) => (
+                                    <li className="item" key={`alert-${alert.id}`}>
+                                        <div>
+                                            <strong>{alert.categoryName}</strong>
+                                            <div className="muted" style={{ fontSize: 13 }}>
+                                                Budget: {asCurrency(alert.amount)} - Forbrug: {asCurrency(alert.spent)}
+                                            </div>
+                                        </div>
+                                        <span className="negative">Over: {asCurrency(alert.over)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Card>
+                    <Card className="section">
+                        <h3 style={{ marginTop: 0 }}>Trend / insights</h3>
+                        {trendCards.length === 0 ? (
+                            <EmptyState
+                                title="Ingen trenddata"
+                                message="Der skal vaere data i baade valgt maaned og forrige maaned."
+                            />
+                        ) : (
+                            <ul className="transaction-list">
+                                {trendCards.map((trend) => (
+                                    <li className="item" key={`trend-${trend.id}`}>
+                                        <div>
+                                            <strong>{trend.categoryName}</strong>
+                                            <div className="muted" style={{ fontSize: 13 }}>
+                                                {filters.month} vs {prevMonth}
+                                            </div>
+                                        </div>
+                                        <span className={trend.changePct > 0 ? 'negative' : 'positive'}>
+                                            {trend.changePct > 0 ? '+' : ''}
+                                            {trend.changePct.toFixed(1)}%
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </Card>
                 </section>
 
