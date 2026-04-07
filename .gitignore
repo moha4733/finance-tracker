@@ -1,5 +1,12 @@
 HELP.md
 node_modules/
+.env
+.env.local
+.env.*.local
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
 
 target/
 .mvn/wrapper/maven-wrapper.jar

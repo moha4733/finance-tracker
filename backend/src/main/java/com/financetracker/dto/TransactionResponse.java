@@ -9,6 +9,7 @@ public class TransactionResponse {
     private String description;
     private LocalDate date;
     private String type;
+    private Long categoryId;
     private String categoryName;
 
 
@@ -58,5 +59,13 @@ public class TransactionResponse {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
     }
 }

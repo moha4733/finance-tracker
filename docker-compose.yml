@@ -1,1 +1,20 @@
-##services: {}
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finance-tracker-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-financetracker}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - finance_tracker_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-financetracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  finance_tracker_pgdata:

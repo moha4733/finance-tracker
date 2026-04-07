@@ -75,7 +75,40 @@ public class TransactionService {
     }
 
     public void delete(Long id) {
-        transactionRepository.deleteById(id);
+        User user = getCurrentUser();
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaktion ikke fundet"));
+        if (transaction.getUser().getId() != user.getId()) {
+            throw new RuntimeException("Du har ikke adgang til denne transaktion");
+        }
+        transactionRepository.delete(transaction);
+    }
+
+    public TransactionResponse update(Long id, TransactionRequest request) {
+        User user = getCurrentUser();
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaktion ikke fundet"));
+        if (transaction.getUser().getId() != user.getId()) {
+            throw new RuntimeException("Du har ikke adgang til denne transaktion");
+        }
+
+        Category category = null;
+        if (request.getCategoryId() != null) {
+            category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Kategori ikke fundet"));
+            if (category.getUser().getId() != user.getId()) {
+                throw new RuntimeException("Kategori tilhører ikke denne bruger");
+            }
+        }
+
+        transaction.setAmount(request.getAmount());
+        transaction.setDescription(request.getDescription());
+        transaction.setDate(request.getDate());
+        transaction.setType(request.getType());
+        transaction.setCategory(category);
+
+        Transaction saved = transactionRepository.save(transaction);
+        return toResponse(saved);
     }
 
     private TransactionResponse toResponse(Transaction transaction) {
@@ -85,6 +118,7 @@ public class TransactionService {
         response.setDescription(transaction.getDescription());
         response.setDate(transaction.getDate());
         response.setType(transaction.getType());
+        response.setCategoryId(transaction.getCategory() != null ? transaction.getCategory().getId() : null);
         response.setCategoryName(
                 transaction.getCategory() != null ? transaction.getCategory().getName() : null);
         return response;

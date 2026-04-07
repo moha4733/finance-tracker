@@ -1,7 +1,13 @@
 package com.financetracker.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class LoginRequest {
+
+    @NotBlank(message = "Brugernavn er paakraevet")
     private String username;
+
+    @NotBlank(message = "Kodeord er paakraevet")
     private String password;
 
     public String getUsername() {

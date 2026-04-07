@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.financetracker.dto.AuthResponse;
 import com.financetracker.dto.LoginRequest;
 import com.financetracker.dto.RegisterRequest;
+import com.financetracker.exception.BadRequestException;
 import com.financetracker.model.User;
 import com.financetracker.repository.UserRepository;
 import com.financetracker.security.JwtUtil;
@@ -29,10 +30,10 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Brugernavn er allerede taget");
+            throw new BadRequestException("Brugernavn er allerede taget");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email er allerede i brug");
+            throw new BadRequestException("Email er allerede i brug");
         }
 
         User user = new User();

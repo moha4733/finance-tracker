@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -13,6 +18,13 @@
   },
   "devDependencies": {
     "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.2.0"
+    "@vitejs/plugin-react": "^4.2.0",
+    "@playwright/test": "^1.53.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
   }
 }

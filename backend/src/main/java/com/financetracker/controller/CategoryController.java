@@ -31,4 +31,9 @@ public class CategoryController {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoryResponse> update(@PathVariable Long id, @RequestBody CategoryRequest request) {
+        return ResponseEntity.ok(categoryService.update(id, request));
+    }
 }

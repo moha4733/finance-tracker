@@ -51,7 +51,27 @@ public class CategoryService {
     }
 
     public void delete(Long id) {
-        categoryRepository.deleteById(id);
+        User user = getCurrentUser();
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Kategori ikke fundet"));
+        if (category.getUser().getId() != user.getId()) {
+            throw new RuntimeException("Du har ikke adgang til denne kategori");
+        }
+        categoryRepository.delete(category);
+    }
+
+    public CategoryResponse update(Long id, CategoryRequest request) {
+        User user = getCurrentUser();
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Kategori ikke fundet"));
+        if (category.getUser().getId() != user.getId()) {
+            throw new RuntimeException("Du har ikke adgang til denne kategori");
+        }
+
+        category.setName(request.getName());
+        category.setType(request.getType());
+        Category saved = categoryRepository.save(category);
+        return toResponse(saved);
     }
 
     private CategoryResponse toResponse(Category category) {
